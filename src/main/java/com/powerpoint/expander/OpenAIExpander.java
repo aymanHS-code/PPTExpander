@@ -9,15 +9,22 @@ import io.github.sashirestela.openai.domain.chat.ChatMessage.UserMessage;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.JSONArray;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Logger;
+import java.util.Optional;
+import io.github.cdimascio.dotenv.Dotenv;
 
 public class OpenAIExpander {
     private static final Logger LOGGER = Logger.getLogger(OpenAIExpander.class.getName());
-    private static final String OPENAI_API_KEY = "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";
-    private static final SimpleOpenAI openAI = SimpleOpenAI.builder().apiKey(OPENAI_API_KEY).build();
+    private static final String API_KEY;
+
+    static {
+        Dotenv dotenv = Dotenv.load();
+        API_KEY = Optional.ofNullable(dotenv.get("OPENAI_API_KEY"))
+                .orElseThrow(() -> new IllegalStateException("OPENAI_API_KEY is not set in the .env file"));
+    }
+    private static final SimpleOpenAI openAI = SimpleOpenAI.builder().apiKey(API_KEY).build();
 
     public static String expandSlideContents(List<String> slideContents) {
         List<ChatMessage> messages = new ArrayList<>();

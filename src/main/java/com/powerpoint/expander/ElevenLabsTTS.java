@@ -2,14 +2,21 @@ package com.powerpoint.expander;
 
 import okhttp3.*;
 import org.json.JSONObject;
-
+import io.github.cdimascio.dotenv.Dotenv;
 import java.io.File;
 import java.io.IOException;
 
 public class ElevenLabsTTS {
-    private static final String ELEVENLABS_API_KEY = "sk_006dfedf80df3093336dc383cab4bea5709b7f43f3d53068";
-    private static final String ELEVENLABS_VOICE_ID = "bTEswxYhpv7UDkQg5VRu";
-    private static final String ELEVENLABS_API_URL = "https://api.elevenlabs.io/v1/text-to-speech/" + ELEVENLABS_VOICE_ID;
+    private static final String ELEVENLABS_API_KEY;
+    private static final String ELEVENLABS_VOICE_ID;
+    private static final String ELEVENLABS_API_URL;
+
+    static {
+        Dotenv dotenv = Dotenv.load();
+        ELEVENLABS_API_KEY = dotenv.get("ELEVENLABS_API_KEY");
+        ELEVENLABS_VOICE_ID = dotenv.get("ELEVENLABS_VOICE_ID");
+        ELEVENLABS_API_URL = "https://api.elevenlabs.io/v1/text-to-speech/" + ELEVENLABS_VOICE_ID;
+    }
 
     public static void generateSpeech(String text, String outputPath) throws IOException {
         OkHttpClient client = new OkHttpClient();
