@@ -9,8 +9,8 @@ import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-public class PowerPointExpander {
-    private JFrame frame;
+public class PowerPointExpander extends JFrame
+{  
     private JButton selectFileButton;
     private JButton expandButton;
     private JButton generateAudioButton;
@@ -26,10 +26,10 @@ public class PowerPointExpander {
     }
 
     private void initializeGUI() {
-        frame = new JFrame("PowerPoint Expander");
-        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.setSize(800, 600);
-        frame.setLayout(new BorderLayout());
+        setTitle("PowerPoint Expander");
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setSize(800, 600);
+        setLayout(new BorderLayout());
 
         JPanel topPanel = new JPanel(new FlowLayout());
         selectFileButton = new JButton("Select PowerPoint File");
@@ -53,20 +53,20 @@ public class PowerPointExpander {
         bottomPanel.add(statusLabel, BorderLayout.CENTER);
         bottomPanel.add(progressBar, BorderLayout.SOUTH);
 
-        frame.add(topPanel, BorderLayout.NORTH);
-        frame.add(tabbedPane, BorderLayout.CENTER);
-        frame.add(bottomPanel, BorderLayout.SOUTH);
+        add(topPanel, BorderLayout.NORTH);
+        add(tabbedPane, BorderLayout.CENTER);
+        add(bottomPanel, BorderLayout.SOUTH);
 
         selectFileButton.addActionListener(e -> selectFile());
         expandButton.addActionListener(e -> expandPresentation());
         generateAudioButton.addActionListener(e -> generateAudio());
 
-        frame.setVisible(true);
+        setVisible(true);
     }
 
     private void selectFile() {
         JFileChooser fileChooser = new JFileChooser();
-        int result = fileChooser.showOpenDialog(frame);
+        int result = fileChooser.showOpenDialog(this);
         if (result == JFileChooser.APPROVE_OPTION) {
             selectedFile = fileChooser.getSelectedFile();
             statusLabel.setText("Selected file: " + selectedFile.getName());
@@ -90,6 +90,7 @@ public class PowerPointExpander {
                 protected void done() {
                     try {
                         String expandedContent = get();
+                        System.out.println("WORKER DONE: " + expandedContent);
                         displayExpandedContent(expandedContent);
                     } catch (Exception e) {
                         e.printStackTrace();
@@ -101,11 +102,21 @@ public class PowerPointExpander {
                 }
             };
 
-            expandButton.setEnabled(false);
-            progressBar.setVisible(true);
+
             worker.execute();
+            
+            while(!worker.isDone()) 
+            {
+                System.out.println("Waiting for SwingWorker");
+                try{ Thread.sleep(1000);} 
+                catch(Exception e){JOptionPane.showMessageDialog(this,e);}
+            }
+            
+                     
+            expandButton.setEnabled(false);
+            progressBar.setVisible(true);                    
         } else {
-            JOptionPane.showMessageDialog(frame, "Please select a PowerPoint file first.");
+            JOptionPane.showMessageDialog(this, "Please select a PowerPoint file first.");
         }
     }
 
@@ -124,6 +135,7 @@ public class PowerPointExpander {
         tabbedPane.removeAll();
 
         for (int i = 0; i < slideCount; i++) {
+            System.out.println("Processing Slide: "+(i+1));
             JSONObject slideObject = slidesArray.getJSONObject(i);
             String expandedContentParsed = slideObject.getString("expandedContent");
             
@@ -134,6 +146,9 @@ public class PowerPointExpander {
             tabbedPane.addTab("Slide " + (i + 1), scrollPane);
             slideTextAreas[i] = slideTextArea;
         }
+        
+        revalidate();
+        this.repaint();
 
         generateAudioButton.setEnabled(true);
         statusLabel.setText("Content expanded. You can now edit the content and generate audio.");
@@ -154,11 +169,11 @@ public class PowerPointExpander {
             }
 
             statusLabel.setText("Audio generation complete! Audio files saved in: " + outputDir);
-            JOptionPane.showMessageDialog(frame, "Audio generation complete!\nAudio files saved in: " + outputDir);
+            JOptionPane.showMessageDialog(this, "Audio generation complete!\nAudio files saved in: " + outputDir);
         } catch (Exception e) {
             e.printStackTrace();
             statusLabel.setText("Error generating audio: " + e.getMessage());
-            JOptionPane.showMessageDialog(frame, "Error generating audio: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Error generating audio: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
 
