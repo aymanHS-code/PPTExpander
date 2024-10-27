@@ -30,8 +30,8 @@ public class OpenAIExpander {
         LOGGER.info("Expanding slide contents. Number of slides: " + slideContents.size());
         
         List<ChatMessage> messages = new ArrayList<>();
-        messages.add(SystemMessage.of("You are an AI assistant that expands on PowerPoint slide content, providing more details and explanations. Format the response for optimal listening, ensuring it's not too fast or too slow."));
-        
+        messages.add(SystemMessage.of("You are an AI tutor designed to explain and expand on PowerPoint slide content directly to students. Your goal is to help students understand the material better. Speak in a friendly, first-person manner as if you're talking directly to the student(s). Explain concepts clearly, use relatable examples, and break down complex ideas. Your explanations should be engaging, easy to follow, and tailored for listening. Avoid mentioning that you're expanding on slides; instead, naturally incorporate the slide's content into your explanation. Make sure your pace is suitable for listening, neither too fast nor too slow."));
+
         StringBuilder prompt = new StringBuilder("Expand on the following PowerPoint slide contents:\n\n");
         for (int i = 0; i < slideContents.size(); i++) {
             prompt.append("Slide ").append(i + 1).append(":\n").append(slideContents.get(i)).append("\n\n");

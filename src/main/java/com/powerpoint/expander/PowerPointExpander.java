@@ -5,6 +5,7 @@ import org.json.JSONArray;
 import javax.swing.*;
 import java.awt.*;
 import java.io.File;
+import java.io.IOException;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -35,7 +36,7 @@ public class PowerPointExpander {
         JPanel topPanel = new JPanel(new FlowLayout());
         selectFileButton = new JButton("Select PowerPoint File");
         expandButton = new JButton("Expand Presentation");
-        generateAudioButton = new JButton("Generate Audio");
+        generateAudioButton = new JButton("Generate audio for this slide");
         generateAudioButton.setEnabled(false);
 
         topPanel.add(selectFileButton);
@@ -43,6 +44,7 @@ public class PowerPointExpander {
         topPanel.add(generateAudioButton);
 
         tabbedPane = new JTabbedPane();
+        tabbedPane.addChangeListener(e -> updateGenerateAudioButton());
 
         statusLabel = new JLabel("No file selected", SwingConstants.CENTER);
 
@@ -60,7 +62,7 @@ public class PowerPointExpander {
 
         selectFileButton.addActionListener(e -> selectFile());
         expandButton.addActionListener(e -> expandPresentation());
-        generateAudioButton.addActionListener(e -> generateAudio());
+        generateAudioButton.addActionListener(e -> generateAudioForCurrentSlide());
 
         frame.setVisible(true);
     }
@@ -138,31 +140,45 @@ public class PowerPointExpander {
             slideTextAreas[i] = slideTextArea;
         }
 
-        generateAudioButton.setEnabled(true);
-        statusLabel.setText("Content expanded. You can now edit the content and generate audio.");
+        updateGenerateAudioButton();
+        statusLabel.setText("Content expanded. You can now edit the content and generate audio for each slide.");
     }
 
-    private void generateAudio() {
+    private void generateAudioForCurrentSlide() {
+        int selectedIndex = tabbedPane.getSelectedIndex();
+        if (selectedIndex == -1) {
+            JOptionPane.showMessageDialog(frame, "Please select a slide first.", "No Slide Selected", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
         try {
             statusLabel.setText("Generating speech with ElevenLabs...");
             String pptName = selectedFile.getName().replaceFirst("[.][^.]+$", "");
             String outputDir = selectedFile.getParent() + File.separator + pptName + "_audio";
             new File(outputDir).mkdirs();
 
-            for (int i = 0; i < slideTextAreas.length; i++) {
-                String slideContent = slideTextAreas[i].getText();
-                String outputPath = outputDir + File.separator + "slide" + (i + 1) + ".mp3";
-                ElevenLabsTTS.generateSpeech(slideContent.trim(), outputPath);
-                statusLabel.setText("Generated audio for slide " + (i + 1) + " of " + slideTextAreas.length);
-            }
+            String slideContent = slideTextAreas[selectedIndex].getText();
+            String outputPath = outputDir + File.separator + "slide" + (selectedIndex + 1) + ".mp3";
 
-            statusLabel.setText("Audio generation complete! Audio files saved in: " + outputDir);
-            JOptionPane.showMessageDialog(frame, "Audio generation complete!\nAudio files saved in: " + outputDir);
+            try {
+                ElevenLabsTTS.generateSpeech(slideContent.trim(), outputPath);
+                statusLabel.setText("Generated audio for slide " + (selectedIndex + 1));
+                JOptionPane.showMessageDialog(frame, "Audio generated successfully for slide " + (selectedIndex + 1) + ".\nSaved to: " + outputPath);
+            } catch (IOException e) {
+                LOGGER.severe("Error generating audio for slide " + (selectedIndex + 1) + ": " + e.getMessage());
+                statusLabel.setText("Error generating audio for slide " + (selectedIndex + 1) + ": " + e.getMessage());
+                JOptionPane.showMessageDialog(frame, "Error generating audio for slide " + (selectedIndex + 1) + ": " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            }
         } catch (Exception e) {
+            LOGGER.severe("Error in audio generation process: " + e.getMessage());
             e.printStackTrace();
-            statusLabel.setText("Error generating audio: " + e.getMessage());
-            JOptionPane.showMessageDialog(frame, "Error generating audio: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            statusLabel.setText("Error in audio generation process: " + e.getMessage());
+            JOptionPane.showMessageDialog(frame, "Error in audio generation process: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
+    }
+
+    private void updateGenerateAudioButton() {
+        generateAudioButton.setEnabled(tabbedPane.getTabCount() > 0);
     }
 
     public static void main(String[] args) {
