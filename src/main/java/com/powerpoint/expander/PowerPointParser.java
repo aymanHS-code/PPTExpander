@@ -1,52 +1,98 @@
 package com.powerpoint.expander;
 
 import org.apache.poi.xslf.usermodel.*;
-
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Logger;
-import java.util.logging.Level;
+import com.cloudinary.Cloudinary;
+import com.cloudinary.utils.ObjectUtils;
+import io.github.cdimascio.dotenv.Dotenv;
 
 public class PowerPointParser {
     private static final Logger LOGGER = Logger.getLogger(PowerPointParser.class.getName());
+    private static final Cloudinary cloudinary;
 
-    public static List<String> parseSlides(File file) throws IOException {
-        List<String> slideContents = new ArrayList<>();
+    static {
+        Dotenv dotenv = Dotenv.load();
+        cloudinary = new Cloudinary(dotenv.get("CLOUDINARY_URL"));
+    }
+
+    public static List<SlideContent> parseSlides(File file) throws IOException {
+        List<SlideContent> slideContents = new ArrayList<>();
         LOGGER.info("Starting to parse PowerPoint file: " + file.getName());
-
+        
         try (FileInputStream fis = new FileInputStream(file);
              XMLSlideShow ppt = new XMLSlideShow(fis)) {
-
-            LOGGER.info("PowerPoint file opened successfully. Total slides: " + ppt.getSlides().size());
-
-            for (int i = 0; i < ppt.getSlides().size(); i++) {
+            
+            int slideCount = ppt.getSlides().size();
+            LOGGER.info("PowerPoint file contains " + slideCount + " slides");
+            
+            for (int i = 0; i < slideCount; i++) {
                 XSLFSlide slide = ppt.getSlides().get(i);
                 LOGGER.info("Parsing slide " + (i + 1));
-
-                StringBuilder slideContent = new StringBuilder();
+                SlideContent content = new SlideContent();
+                StringBuilder textContent = new StringBuilder();
+                
                 for (XSLFShape shape : slide.getShapes()) {
                     if (shape instanceof XSLFTextShape) {
+                        LOGGER.info("Parsing text shape in slide " + (i + 1));
                         XSLFTextShape textShape = (XSLFTextShape) shape;
-                        String text = textShape.getText();
-                        LOGGER.fine("Found text shape: " + text);
-                        slideContent.append(text).append("\n");
+                        textContent.append(textShape.getText()).append("\n");
+                    } else if (shape instanceof XSLFTable) {
+                        LOGGER.info("Parsing table in slide " + (i + 1));
+                        XSLFTable table = (XSLFTable) shape;
+                        content.setTable(parseTable(table));
+                    } else if (shape instanceof XSLFPictureShape) {
+                        LOGGER.info("Parsing image in slide " + (i + 1));
+                        XSLFPictureShape picture = (XSLFPictureShape) shape;
+                        content.setImageUrl(uploadAndGetImageUrl(picture));
                     } else {
-                        LOGGER.fine("Found non-text shape: " + shape.getShapeName());
+                        LOGGER.info("Encountered unknown shape type in slide " + (i + 1) + ": " + shape.getClass().getSimpleName());
                     }
                 }
-                String content = slideContent.toString().trim();
-                LOGGER.info("Slide " + (i + 1) + " content: " + (content.length() > 50 ? content.substring(0, 50) + "..." : content));
+                
+                content.setText(textContent.toString().trim());
                 slideContents.add(content);
+                LOGGER.info("Finished parsing slide " + (i + 1));
             }
-        } catch (Exception e) {
-            LOGGER.log(Level.SEVERE, "Error parsing PowerPoint file", e);
-            throw new IOException("Error parsing PowerPoint file", e);
         }
-
-        LOGGER.info("Finished parsing PowerPoint file. Total slides parsed: " + slideContents.size() + "\n" + slideContents.toString());
+        LOGGER.info("Finished parsing PowerPoint file: " + file.getName());
         return slideContents;
+    }
+
+    private static String parseTable(XSLFTable table) {
+        StringBuilder tableContent = new StringBuilder();
+        int rowCount = table.getNumberOfRows();
+        LOGGER.info("Parsing table with " + rowCount + " rows");
+        
+        for (int i = 0; i < rowCount; i++) {
+            XSLFTableRow row = table.getRows().get(i);
+            int cellCount = row.getCells().size();
+            for (int j = 0; j < cellCount; j++) {
+                XSLFTableCell cell = row.getCells().get(j);
+                tableContent.append(cell.getText());
+                if (j < cellCount - 1) {
+                    tableContent.append(" | ");
+                }
+            }
+            tableContent.append("\n");
+        }
+        LOGGER.info("Finished parsing table");
+        return tableContent.toString().trim();
+    }
+
+    private static String uploadAndGetImageUrl(XSLFPictureShape picture) throws IOException {
+        byte[] pictureData = picture.getPictureData().getData();
+        LOGGER.info("Uploading image to Cloudinary, size: " + pictureData.length + " bytes");
+        
+        @SuppressWarnings("unchecked")
+        Map<String, Object> uploadResult = (Map<String, Object>) cloudinary.uploader().upload(pictureData, ObjectUtils.emptyMap());
+        String imageUrl = (String) uploadResult.get("secure_url");
+        LOGGER.info("Uploaded image to Cloudinary: " + imageUrl);
+        return imageUrl;
     }
 }

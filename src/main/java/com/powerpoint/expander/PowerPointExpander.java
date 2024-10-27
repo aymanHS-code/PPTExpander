@@ -7,6 +7,8 @@ import java.awt.*;
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -20,8 +22,17 @@ public class PowerPointExpander {
     private JTabbedPane tabbedPane;
     private JProgressBar progressBar;
     private File selectedFile;
-    private List<String> expandedContents;
+    private JTextField maxTokensField;
+    private JComboBox<String> modelSelector;
+    private JLabel pricingLabel;
     private static final Logger LOGGER = Logger.getLogger(PowerPointExpander.class.getName());
+
+    private static final Map<String, String> MODEL_PRICING = new HashMap<>();
+    static {
+        MODEL_PRICING.put("gpt-4o-mini", "Input: $0.000150 / 1K tokens, Output: $0.000600 / 1K tokens");
+        MODEL_PRICING.put("gpt-3.5-turbo-0125", "Input: $0.0005 / 1K tokens, Output: $0.0015 / 1K tokens");
+        // Add more models and their pricing here
+    }
 
     public PowerPointExpander() {
         initializeGUI();
@@ -30,18 +41,54 @@ public class PowerPointExpander {
     private void initializeGUI() {
         frame = new JFrame("PowerPoint Expander");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.setSize(800, 600);
+        frame.setSize(1000, 800);  // Increased size
         frame.setLayout(new BorderLayout());
 
-        JPanel topPanel = new JPanel(new FlowLayout());
+        JPanel topPanel = new JPanel(new GridBagLayout());
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        gbc.anchor = GridBagConstraints.WEST;
+        gbc.insets = new Insets(5, 5, 5, 5);
+
         selectFileButton = new JButton("Select PowerPoint File");
         expandButton = new JButton("Expand Presentation");
         generateAudioButton = new JButton("Generate audio for this slide");
         generateAudioButton.setEnabled(false);
 
-        topPanel.add(selectFileButton);
-        topPanel.add(expandButton);
-        topPanel.add(generateAudioButton);
+        JLabel maxTokensLabel = new JLabel("Max Tokens:");
+        maxTokensField = new JTextField("2000", 5);
+        JLabel tokenInfoLabel = new JLabel("?");
+        tokenInfoLabel.setToolTipText("<html>Tokens are pieces of words used for natural language processing.<br>" +
+                "The max tokens parameter sets the maximum length of the generated text.<br>" +
+                "Higher values allow for longer responses but may increase processing time and costs.</html>");
+        tokenInfoLabel.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+
+        modelSelector = new JComboBox<>(MODEL_PRICING.keySet().toArray(new String[0]));
+        modelSelector.addActionListener(e -> updatePricingInfo());
+
+        pricingLabel = new JLabel();
+        updatePricingInfo();
+
+        topPanel.add(selectFileButton, gbc);
+        gbc.gridx++;
+        topPanel.add(expandButton, gbc);
+        gbc.gridx++;
+        topPanel.add(generateAudioButton, gbc);
+        gbc.gridx = 0;
+        gbc.gridy++;
+        topPanel.add(maxTokensLabel, gbc);
+        gbc.gridx++;
+        topPanel.add(maxTokensField, gbc);
+        gbc.gridx++;
+        topPanel.add(tokenInfoLabel, gbc);
+        gbc.gridx = 0;
+        gbc.gridy++;
+        topPanel.add(new JLabel("Model:"), gbc);
+        gbc.gridx++;
+        topPanel.add(modelSelector, gbc);
+        gbc.gridx++;
+        topPanel.add(pricingLabel, gbc);
 
         tabbedPane = new JTabbedPane();
         tabbedPane.addChangeListener(e -> updateGenerateAudioButton());
@@ -57,7 +104,7 @@ public class PowerPointExpander {
         bottomPanel.add(progressBar, BorderLayout.SOUTH);
 
         frame.add(topPanel, BorderLayout.NORTH);
-        frame.add(tabbedPane, BorderLayout.CENTER);
+        frame.add(new JScrollPane(tabbedPane), BorderLayout.CENTER);
         frame.add(bottomPanel, BorderLayout.SOUTH);
 
         selectFileButton.addActionListener(e -> selectFile());
@@ -65,6 +112,14 @@ public class PowerPointExpander {
         generateAudioButton.addActionListener(e -> generateAudioForCurrentSlide());
 
         frame.setVisible(true);
+    }
+
+    private void updatePricingInfo() {
+        String selectedModel = (String) modelSelector.getSelectedItem();
+        String pricingInfo = MODEL_PRICING.get(selectedModel);
+        pricingLabel.setText(pricingInfo);
+        pricingLabel.setToolTipText(pricingInfo);
+        frame.revalidate();  // Revalidate the frame to update the layout
     }
 
     private void selectFile() {
@@ -83,10 +138,12 @@ public class PowerPointExpander {
                 @Override
                 protected JSONObject doInBackground() throws Exception {
                     statusLabel.setText("Parsing PowerPoint...");
-                    List<String> slideContents = PowerPointParser.parseSlides(selectedFile);
+                    List<SlideContent> slideContents = PowerPointParser.parseSlides(selectedFile);
 
                     statusLabel.setText("Expanding content with OpenAI...");
-                    String jsonResponse = OpenAIExpander.expandSlideContents(slideContents);
+                    int maxTokens = Integer.parseInt(maxTokensField.getText());
+                    String selectedModel = (String) modelSelector.getSelectedItem();
+                    String jsonResponse = OpenAIExpander.expandSlideContents(slideContents, maxTokens, selectedModel);
                     LOGGER.info("JSON response from OpenAIExpander: " + jsonResponse);
                     return new JSONObject(jsonResponse);
                 }
