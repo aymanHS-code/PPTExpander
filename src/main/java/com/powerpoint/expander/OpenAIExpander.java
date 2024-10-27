@@ -27,6 +27,8 @@ public class OpenAIExpander {
     private static final SimpleOpenAI openAI = SimpleOpenAI.builder().apiKey(API_KEY).build();
 
     public static String expandSlideContents(List<String> slideContents) {
+        LOGGER.info("Expanding slide contents. Number of slides: " + slideContents.size());
+        
         List<ChatMessage> messages = new ArrayList<>();
         messages.add(SystemMessage.of("You are an AI assistant that expands on PowerPoint slide content, providing more details and explanations. Format the response for optimal listening, ensuring it's not too fast or too slow."));
         
@@ -34,20 +36,11 @@ public class OpenAIExpander {
         for (int i = 0; i < slideContents.size(); i++) {
             prompt.append("Slide ").append(i + 1).append(":\n").append(slideContents.get(i)).append("\n\n");
         }
-        prompt.append("Format your response as a JSON object with keys 'slide1', 'slide2', etc., containing the expanded content for each slide.");
+        prompt.append("Format your response as a JSON object with an array of 'slides', each containing an 'expandedContent' field for each slide.");
         
         messages.add(UserMessage.of(prompt.toString()));
 
-        // Create the JSON schema for SlideExpansion
-        JSONObject schema = new JSONObject();
-        schema.put("type", "object");
-        JSONObject properties = new JSONObject();
-        for (int i = 1; i <= slideContents.size(); i++) {
-            properties.put("slide" + i, new JSONObject().put("type", "string"));
-        }
-        schema.put("properties", properties);
-        schema.put("required", properties.keySet());
-
+        LOGGER.info("Sending request to OpenAI API");
         ChatRequest chatRequest = ChatRequest.builder()
                 .model("gpt-4o-mini")
                 .messages(messages)
@@ -67,21 +60,30 @@ public class OpenAIExpander {
             // Attempt to parse the JSON response
             try {
                 JSONObject jsonResponse = new JSONObject(content);
-                JSONArray slidesArray = new JSONArray();
-                for (int i = 0; i < slideContents.size(); i++) {
-                    String key = "slide" + (i + 1);
-                    if (jsonResponse.has(key)) {
-                        JSONObject slideObject = new JSONObject();
-                        slideObject.put("expandedContent", jsonResponse.getString(key));
-                        slidesArray.put(slideObject);
+                LOGGER.info("Parsed JSON response: " + jsonResponse.toString(2));
+                
+                if (!jsonResponse.has("slides")) {
+                    LOGGER.info("Response doesn't have 'slides' key. Wrapping content.");
+                    // If the response doesn't have a "slides" key, wrap it in one
+                    JSONObject wrappedResponse = new JSONObject();
+                    JSONArray slidesArray = new JSONArray();
+                    for (int i = 0; i < slideContents.size(); i++) {
+                        String key = "slide" + (i + 1);
+                        if (jsonResponse.has(key)) {
+                            JSONObject slideObject = new JSONObject();
+                            slideObject.put("expandedContent", jsonResponse.getString(key));
+                            slidesArray.put(slideObject);
+                        }
                     }
+                    wrappedResponse.put("slides", slidesArray);
+                    LOGGER.info("Wrapped response: " + wrappedResponse.toString(2));
+                    return wrappedResponse.toString();
                 }
-                JSONObject result = new JSONObject();
-                result.put("slides", slidesArray);
-                return result.toString();
+                LOGGER.info("Returning original JSON response");
+                return jsonResponse.toString();
             } catch (JSONException e) {
                 LOGGER.warning("Failed to parse JSON response: " + e.getMessage());
-                return createErrorJson("Invalid JSON response from API");
+                return createErrorJson("Invalid JSON response from API: " + e.getMessage());
             }
         } catch (Exception e) {
             LOGGER.severe("Error in API call: " + e.getMessage());

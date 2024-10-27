@@ -20,6 +20,7 @@ public class PowerPointExpander {
     private JProgressBar progressBar;
     private File selectedFile;
     private List<String> expandedContents;
+    private static final Logger LOGGER = Logger.getLogger(PowerPointExpander.class.getName());
 
     public PowerPointExpander() {
         initializeGUI();
@@ -76,22 +77,26 @@ public class PowerPointExpander {
 
     private void expandPresentation() {
         if (selectedFile != null) {
-            SwingWorker<String, Void> worker = new SwingWorker<String, Void>() {
+            SwingWorker<JSONObject, Void> worker = new SwingWorker<JSONObject, Void>() {
                 @Override
-                protected String doInBackground() throws Exception {
+                protected JSONObject doInBackground() throws Exception {
                     statusLabel.setText("Parsing PowerPoint...");
                     List<String> slideContents = PowerPointParser.parseSlides(selectedFile);
 
                     statusLabel.setText("Expanding content with OpenAI...");
-                    return OpenAIExpander.expandSlideContents(slideContents);
+                    String jsonResponse = OpenAIExpander.expandSlideContents(slideContents);
+                    LOGGER.info("JSON response from OpenAIExpander: " + jsonResponse);
+                    return new JSONObject(jsonResponse);
                 }
 
                 @Override
                 protected void done() {
                     try {
-                        String expandedContent = get();
+                        JSONObject expandedContent = get();
+                        LOGGER.info("Expanded content received in PowerPointExpander: " + expandedContent.toString(2));
                         displayExpandedContent(expandedContent);
                     } catch (Exception e) {
+                        LOGGER.severe("Error in PowerPointExpander: " + e.getMessage());
                         e.printStackTrace();
                         statusLabel.setText("Error: " + e.getMessage());
                     } finally {
@@ -109,9 +114,7 @@ public class PowerPointExpander {
         }
     }
 
-    private void displayExpandedContent(String expandedContent) {
-        JSONObject expandedContentJson = new JSONObject(expandedContent);
-
+    private void displayExpandedContent(JSONObject expandedContentJson) {
         if (expandedContentJson.has("error")) {
             statusLabel.setText("Error: " + expandedContentJson.getString("error"));
             return;
