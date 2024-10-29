@@ -11,10 +11,11 @@ Taking a simple presentation as input and generates more detailed content for ea
 ## Setup
 1. Clone the repository
 2. Create a `.env` file in the root directory of the project
-3. Add your OpenAI & Elevenlabs API key to the `.env` file:
+3. Add your API keys to the `.env` file:
    ```
    OPENAI_API_KEY=your_api_key_here
    ELEVENLABS_API_KEY=your_api_key_here
+   CLOUDINARY_URL=your_cloudinary_url_here
    ```
 4. Build and install requirements using `mvn clean install`
 5. Run the built `.jar` file or execute from terminal using `java -jar target/<name-of-jar-file>.jar`
