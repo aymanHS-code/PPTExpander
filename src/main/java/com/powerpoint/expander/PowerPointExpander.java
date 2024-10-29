@@ -1,6 +1,7 @@
 package com.powerpoint.expander;
 
 import org.json.JSONObject;
+
 import org.json.JSONArray;
 import javax.swing.*;
 import java.awt.*;
@@ -25,12 +26,14 @@ public class PowerPointExpander {
     private JTextField maxTokensField;
     private JComboBox<String> modelSelector;
     private JLabel pricingLabel;
+    private JButton settingsButton;
     private static final Logger LOGGER = Logger.getLogger(PowerPointExpander.class.getName());
 
     private static final Map<String, String> MODEL_PRICING = new HashMap<>();
     static {
         MODEL_PRICING.put("gpt-4o-mini", "Input: $0.000150 / 1K tokens, Output: $0.000600 / 1K tokens");
         MODEL_PRICING.put("gpt-3.5-turbo-0125", "Input: $0.0005 / 1K tokens, Output: $0.0015 / 1K tokens");
+        MODEL_PRICING.put("claude-3.5 (soon)", "Coming soon!");
         // Add more models and their pricing here
     }
 
@@ -41,76 +44,121 @@ public class PowerPointExpander {
     private void initializeGUI() {
         frame = new JFrame("PowerPoint Expander");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.setSize(1000, 800);  // Increased size
+        frame.setSize(1000, 800);
         frame.setLayout(new BorderLayout());
 
-        JPanel topPanel = new JPanel(new GridBagLayout());
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.gridx = 0;
-        gbc.gridy = 0;
-        gbc.anchor = GridBagConstraints.WEST;
-        gbc.insets = new Insets(5, 5, 5, 5);
+        // Add this code to set the icon
+        try {
+            ImageIcon icon = new ImageIcon(getClass().getResource("/icon.png"));
+            frame.setIconImage(icon.getImage());
+        } catch (Exception e) {
+            LOGGER.warning("Could not load application icon: " + e.getMessage());
+        }
 
+        // Create a main top panel to hold both status and action buttons
+        JPanel mainTopPanel = new JPanel(new BorderLayout());
+
+        // Status panel
+        JPanel statusPanel = new JPanel(new BorderLayout());
+        statusLabel = new JLabel("No file selected", SwingConstants.CENTER);
+        statusPanel.add(statusLabel, BorderLayout.CENTER);
+        mainTopPanel.add(statusPanel, BorderLayout.NORTH);
+
+        // Action buttons panel - now using FlowLayout.CENTER
+        JPanel actionPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 5));
         selectFileButton = new JButton("Select PowerPoint File");
         expandButton = new JButton("Expand Presentation");
+        expandButton.setEnabled(false);  // Initially disabled
         generateAudioButton = new JButton("Generate audio for this slide");
         generateAudioButton.setEnabled(false);
 
-        JLabel maxTokensLabel = new JLabel("Max Tokens:");
+        actionPanel.add(selectFileButton);
+        actionPanel.add(expandButton);
+        actionPanel.add(generateAudioButton);
+        mainTopPanel.add(actionPanel, BorderLayout.CENTER);
+
+        // Bottom panel for settings and options
+        JPanel bottomPanel = new JPanel(new BorderLayout());
+        
+        // Progress bar panel - now at the top of bottom panel
+        progressBar = new JProgressBar();
+        progressBar.setIndeterminate(true);
+        progressBar.setVisible(false);
+        bottomPanel.add(progressBar, BorderLayout.NORTH);
+        
+        // Options and buttons panel
+        JPanel optionsAndButtonsPanel = new JPanel(new BorderLayout());
+        
+        // Options panel (left side of bottom)
+        JPanel optionsPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
+        
+        // Model selection
+        JPanel modelPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
+        modelPanel.add(new JLabel("Model:"));
+        modelSelector = new JComboBox<>(MODEL_PRICING.keySet().toArray(new String[0]));
+        modelSelector.addActionListener(e -> updatePricingInfo());
+        modelSelector.setRenderer(new DefaultListCellRenderer() {
+            @Override
+            public Component getListCellRendererComponent(JList<?> list, Object value, 
+                    int index, boolean isSelected, boolean cellHasFocus) {
+                Component c = super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
+                if ("claude-3.5 (soon)".equals(value)) {
+                    c.setEnabled(false);
+                }
+                return c;
+            }
+        });
+        modelPanel.add(modelSelector);
+        pricingLabel = new JLabel();
+        modelPanel.add(pricingLabel);
+        optionsPanel.add(modelPanel);
+
+        // Token limit
+        JPanel tokenPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
+        tokenPanel.add(new JLabel("Max Tokens:"));
         maxTokensField = new JTextField("2000", 5);
+        tokenPanel.add(maxTokensField);
         JLabel tokenInfoLabel = new JLabel("?");
         tokenInfoLabel.setToolTipText("<html>Tokens are pieces of words used for natural language processing.<br>" +
                 "The max tokens parameter sets the maximum length of the generated text.<br>" +
                 "Higher values allow for longer responses but may increase processing time and costs.</html>");
         tokenInfoLabel.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        tokenPanel.add(tokenInfoLabel);
+        optionsPanel.add(tokenPanel);
 
-        modelSelector = new JComboBox<>(MODEL_PRICING.keySet().toArray(new String[0]));
-        modelSelector.addActionListener(e -> updatePricingInfo());
+        // Buttons panel (right side of bottom)
+        JPanel buttonsPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 5));
+        
+        // System prompt button
+        JButton systemPromptButton = new JButton("Edit System Prompt");
+        systemPromptButton.addActionListener(e -> showSystemPromptDialog());
+        buttonsPanel.add(systemPromptButton);
 
-        pricingLabel = new JLabel();
-        updatePricingInfo();
+        // Settings button
+        settingsButton = new JButton("Settings");
+        settingsButton.addActionListener(e -> Settings.showSettingsDialog(frame));
+        buttonsPanel.add(settingsButton);
 
-        topPanel.add(selectFileButton, gbc);
-        gbc.gridx++;
-        topPanel.add(expandButton, gbc);
-        gbc.gridx++;
-        topPanel.add(generateAudioButton, gbc);
-        gbc.gridx = 0;
-        gbc.gridy++;
-        topPanel.add(maxTokensLabel, gbc);
-        gbc.gridx++;
-        topPanel.add(maxTokensField, gbc);
-        gbc.gridx++;
-        topPanel.add(tokenInfoLabel, gbc);
-        gbc.gridx = 0;
-        gbc.gridy++;
-        topPanel.add(new JLabel("Model:"), gbc);
-        gbc.gridx++;
-        topPanel.add(modelSelector, gbc);
-        gbc.gridx++;
-        topPanel.add(pricingLabel, gbc);
+        optionsAndButtonsPanel.add(optionsPanel, BorderLayout.WEST);
+        optionsAndButtonsPanel.add(buttonsPanel, BorderLayout.EAST);
+        
+        bottomPanel.add(optionsAndButtonsPanel, BorderLayout.CENTER);
 
+        // Initialize tab pane
         tabbedPane = new JTabbedPane();
         tabbedPane.addChangeListener(e -> updateGenerateAudioButton());
 
-        statusLabel = new JLabel("No file selected", SwingConstants.CENTER);
-
-        progressBar = new JProgressBar();
-        progressBar.setIndeterminate(true);
-        progressBar.setVisible(false);
-
-        JPanel bottomPanel = new JPanel(new BorderLayout());
-        bottomPanel.add(statusLabel, BorderLayout.CENTER);
-        bottomPanel.add(progressBar, BorderLayout.SOUTH);
-
-        frame.add(topPanel, BorderLayout.NORTH);
+        // Add all panels to frame
+        frame.add(mainTopPanel, BorderLayout.NORTH);
         frame.add(new JScrollPane(tabbedPane), BorderLayout.CENTER);
         frame.add(bottomPanel, BorderLayout.SOUTH);
 
+        // Add action listeners
         selectFileButton.addActionListener(e -> selectFile());
         expandButton.addActionListener(e -> expandPresentation());
         generateAudioButton.addActionListener(e -> generateAudioForCurrentSlide());
 
+        updatePricingInfo();
         frame.setVisible(true);
     }
 
@@ -238,16 +286,52 @@ public class PowerPointExpander {
         generateAudioButton.setEnabled(tabbedPane.getTabCount() > 0);
     }
 
+    private void showSystemPromptDialog() {
+        JDialog dialog = new JDialog(frame, "Edit System Prompt", true);
+        dialog.setLayout(new BorderLayout());
+
+        JTextArea promptArea = new JTextArea(Settings.get("system.prompt"), 20, 60);
+        promptArea.setLineWrap(true);
+        promptArea.setWrapStyleWord(true);
+        JScrollPane scrollPane = new JScrollPane(promptArea);
+
+        JPanel buttonPanel = new JPanel();
+        JButton saveButton = new JButton("Save");
+        JButton cancelButton = new JButton("Cancel");
+        JButton resetButton = new JButton("Reset to Default");
+
+        saveButton.addActionListener(e -> {
+            Settings.set("system.prompt", promptArea.getText());
+            Settings.saveSettings();
+            dialog.dispose();
+        });
+
+        cancelButton.addActionListener(e -> dialog.dispose());
+
+        resetButton.addActionListener(e -> {
+            promptArea.setText(Settings.DEFAULT_SYSTEM_PROMPT);
+        });
+
+        buttonPanel.add(saveButton);
+        buttonPanel.add(cancelButton);
+        buttonPanel.add(resetButton);
+
+        dialog.add(scrollPane, BorderLayout.CENTER);
+        dialog.add(buttonPanel, BorderLayout.SOUTH);
+
+        dialog.setSize(800, 600);
+        dialog.setLocationRelativeTo(frame);
+        dialog.setVisible(true);
+    }
+
     public static void main(String[] args) {
         // Configure logging
         System.setProperty("java.util.logging.SimpleFormatter.format", "[%1$tF %1$tT] [%4$-7s] %5$s %n");
         Logger.getLogger("").setLevel(Level.INFO);
         Logger.getLogger("").getHandlers()[0].setLevel(Level.INFO);
 
-        SwingUtilities.invokeLater(new Runnable() {
-            public void run() {
-                new PowerPointExpander();
-            }
+        SwingUtilities.invokeLater(() -> {
+            new PowerPointExpander();
         });
     }
 }

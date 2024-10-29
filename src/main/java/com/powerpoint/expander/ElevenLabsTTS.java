@@ -7,20 +7,11 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.logging.Logger;
 import java.util.concurrent.TimeUnit;
-import io.github.cdimascio.dotenv.Dotenv;
 
 public class ElevenLabsTTS {
     private static final Logger LOGGER = Logger.getLogger(ElevenLabsTTS.class.getName());
-    private static final String API_KEY;
-    private static final String VOICE_ID;
     private static final int MAX_RETRIES = 3;
     private static final int TIMEOUT_SECONDS = 60;
-
-    static {
-        Dotenv dotenv = Dotenv.load();
-        API_KEY = dotenv.get("ELEVENLABS_API_KEY");
-        VOICE_ID = dotenv.get("ELEVENLABS_VOICE_ID");
-    }
 
     public static void generateSpeech(String text, String outputPath) throws IOException {
         LOGGER.info("Generating speech for text: " + text.substring(0, Math.min(text.length(), 50)) + "...");
@@ -40,11 +31,11 @@ public class ElevenLabsTTS {
 
         RequestBody body = RequestBody.create(requestBody.toString(), mediaType);
         Request request = new Request.Builder()
-                .url("https://api.elevenlabs.io/v1/text-to-speech/" + VOICE_ID)
+                .url("https://api.elevenlabs.io/v1/text-to-speech/" + getVoiceId())
                 .post(body)
                 .addHeader("Accept", "audio/mpeg")
                 .addHeader("Content-Type", "application/json")
-                .addHeader("xi-api-key", API_KEY)
+                .addHeader("xi-api-key", getApiKey())
                 .build();
 
         for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
@@ -76,5 +67,21 @@ public class ElevenLabsTTS {
                 LOGGER.info("Retrying... (Attempt " + (attempt + 1) + " of " + MAX_RETRIES + ")");
             }
         }
+    }
+
+    private static String getApiKey() {
+        String key = Settings.get("elevenlabs.api.key");
+        if (key.isEmpty()) {
+            throw new IllegalStateException("ElevenLabs API key is not set. Please configure it in Settings.");
+        }
+        return key;
+    }
+
+    private static String getVoiceId() {
+        String id = Settings.get("elevenlabs.voice.id");
+        if (id.isEmpty()) {
+            throw new IllegalStateException("ElevenLabs Voice ID is not set. Please configure it in Settings.");
+        }
+        return id;
     }
 }

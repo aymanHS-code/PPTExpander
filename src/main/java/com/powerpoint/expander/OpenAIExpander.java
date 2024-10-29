@@ -15,43 +15,23 @@ import org.json.JSONArray;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Logger;
-import java.util.Optional;
-import io.github.cdimascio.dotenv.Dotenv;
 
 public class OpenAIExpander {
     private static final Logger LOGGER = Logger.getLogger(OpenAIExpander.class.getName());
-    private static final String API_KEY;
-
-    static {
-        Dotenv dotenv = Dotenv.load();
-        API_KEY = Optional.ofNullable(dotenv.get("OPENAI_API_KEY"))
-                .orElseThrow(() -> new IllegalStateException("OPENAI_API_KEY is not set in the .env file"));
+    private static String getApiKey() {
+        String key = Settings.get("openai.api.key");
+        if (key.isEmpty()) {
+            throw new IllegalStateException("OpenAI API key is not set. Please configure it in Settings.");
+        }
+        return key;
     }
-    private static final SimpleOpenAI openAI = SimpleOpenAI.builder().apiKey(API_KEY).build();
+    private static final SimpleOpenAI openAI = SimpleOpenAI.builder().apiKey(getApiKey()).build();
 
     public static String expandSlideContents(List<SlideContent> slideContents, int maxTokens, String model) {
         LOGGER.info("Expanding slide contents. Number of slides: " + slideContents.size() + ", Max tokens: " + maxTokens + ", Model: " + model);
         
         List<ChatMessage> messages = new ArrayList<>();
-        messages.add(SystemMessage.of(
-            "As an AI professor, explain and expand on PowerPoint slide content for students in a manner to clarify the content given. " +
-            "Follow these guidelines:\n\n" +
-            "1. Present information in a clear, informative manner without directly addressing the listener.\n" +
-            "2. Start explanations immediately with the content, avoiding phrases like 'This slide discusses...' or 'The slide titled...'\n" +
-            "3. Explain concepts in detail, following the order presented in the original content.\n" +
-            "4. Use and elaborate on examples provided to enhance understanding.\n" +
-            "5. Present information in flowing paragraphs, using bullet points sparingly for lists or key points.\n" +
-            "6. Maintain any structure of bullet points or numbered lists from the original content when necessary.\n" +
-            "7. Provide additional context or examples only when it directly supports the content.\n" +
-            "8. Break down complex ideas into simpler terms, always referring back to the original content.\n" +
-            "9. Ensure the explanation is engaging and easy to follow, tailored for listening rather than reading.\n" +
-            "10. Maintain a pace suitable for listening comprehension.\n" +
-            "11. Do not introduce new topics or concepts not mentioned or implied in the original content.\n" +
-            "12. Avoid phrases like 'in this lesson,' 'you will learn,' or directly addressing the listener as 'you.'\n" +
-            "13. Focus on explaining the content objectively, as if providing information rather than teaching a lesson.\n" +
-            "14. Do not use unreadable characters like emojis, symbols, or special characters (only use standard punctuation and numbers).\n\n" +
-            "The primary focus is to explain and clarify the information presented, not to add extensive new information or frame it as a personal lesson."
-        ));
+        messages.add(SystemMessage.of(Settings.get("system.prompt")));
 
         StringBuilder prompt = new StringBuilder("Expand on the following PowerPoint slide contents:\n\n");
         for (int i = 0; i < slideContents.size(); i++) {
