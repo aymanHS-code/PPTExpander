@@ -15,6 +15,7 @@ Taking a simple presentation as input and generates more detailed content for ea
    ```
    OPENAI_API_KEY=your_api_key_here
    ELEVENLABS_API_KEY=your_api_key_here
+   ELEVENLABS_VOICE_ID=your_voice_id_here
    CLOUDINARY_URL=your_cloudinary_url_here
    ```
 4. Build and install requirements using `mvn clean install`
