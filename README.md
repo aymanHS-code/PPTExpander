@@ -41,7 +41,6 @@ If you get a JRE-related error:
    - Add '%JAVA_HOME%\bin'
 
 ## Requirements
-<<<<<<< Updated upstream
 - Java 11 or higher
 - OpenAI API key
 - Elevenlabs API key
@@ -72,13 +71,6 @@ If you get a JRE-related error:
 ## Download
 
 Download the latest version from the [Releases page](https://github.com/yourusername/PPTExpander/releases).
-
-## Installation
-
-1. Ensure you have Java 11 or higher installed
-2. Download `PowerPointExpander-1.0.0.jar` from the releases page
-3. Double-click the JAR file or run:   ```bash
-   java -jar PowerPointExpander-1.0.0.jar   ```
 
 ## First Run
 
@@ -111,4 +103,3 @@ The application stores its configuration in:
    mvn clean package   ```
 
 3. Find the built JAR in `target/PowerPointExpander-1.0.0.jar`
->>>>>>> Stashed changes
