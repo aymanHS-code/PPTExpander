@@ -10,15 +10,19 @@ import java.util.Map;
 import java.util.logging.Logger;
 import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;
-import io.github.cdimascio.dotenv.Dotenv;
 
 public class PowerPointParser {
     private static final Logger LOGGER = Logger.getLogger(PowerPointParser.class.getName());
     private static final Cloudinary cloudinary;
 
     static {
-        Dotenv dotenv = Dotenv.load();
-        cloudinary = new Cloudinary(dotenv.get("CLOUDINARY_URL"));
+        String cloudinaryUrl = Settings.get("cloudinary.url");
+        if (cloudinaryUrl.isEmpty()) {
+            LOGGER.warning("Cloudinary URL is not configured in settings");
+            cloudinary = null;
+        } else {
+            cloudinary = new Cloudinary(cloudinaryUrl);
+        }
     }
 
     public static List<SlideContent> parseSlides(File file) throws IOException {
@@ -86,6 +90,10 @@ public class PowerPointParser {
     }
 
     private static String uploadAndGetImageUrl(XSLFPictureShape picture) throws IOException {
+        if (cloudinary == null) {
+            throw new IllegalStateException("Cloudinary URL is not configured. Please set it in Settings.");
+        }
+
         byte[] pictureData = picture.getPictureData().getData();
         LOGGER.info("Uploading image to Cloudinary, size: " + pictureData.length + " bytes");
         
