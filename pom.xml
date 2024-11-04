@@ -135,11 +135,13 @@
                             <goal>shade</goal>
                         </goals>
                         <configuration>
+                            <finalName>${final.name}-${version}-with-dependencies</finalName>
                             <createDependencyReducedPom>false</createDependencyReducedPom>
                             <transformers>
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
                                     <mainClass>com.powerpoint.expander.PowerPointExpander</mainClass>
                                 </transformer>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
                             </transformers>
                             <filters>
                                 <filter>
@@ -170,7 +172,7 @@
                         <configuration>
                             <headerType>gui</headerType>
                             <outfile>target/${final.name}-${version}.exe</outfile>
-                            <jar>target/${final.name}-${version}.jar</jar>
+                            <jar>target/${final.name}-${version}-with-dependencies.jar</jar>
                             <icon>src/main/resources/icon.ico</icon>
                             <errTitle>PowerPoint Expander - Java Error</errTitle>
                             <classPath>
