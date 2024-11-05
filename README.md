@@ -28,6 +28,7 @@ PPTExpander is meant to enhance PowerPoint presentations by expanding slide cont
 - **Coming Soon**:
   - OpenAI Text-to-Speech integration
   - Additional AI models and features
+  - Additional file formats (PDF, DOCX, etc.)
 
 ## System Requirements
 

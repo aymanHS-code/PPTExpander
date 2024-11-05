@@ -103,10 +103,23 @@ public class Settings {
     }
 
     public static String get(String key) {
-        return properties.getProperty(key, "");
+        String value = properties.getProperty(key, "");
+        
+        // Special handling for cloudinary URL to remove prefix if present
+        if (key.equals("cloudinary.url") && value.startsWith("CLOUDINARY_URL=")) {
+            return value.substring("CLOUDINARY_URL=".length());
+        }
+        return value;
     }
 
     public static void set(String key, String value) {
+        // Special handling for cloudinary URL to ensure correct format
+        if (key.equals("cloudinary.url")) {
+            // Remove prefix if it exists
+            if (value.startsWith("CLOUDINARY_URL=")) {
+                value = value.substring("CLOUDINARY_URL=".length());
+            }
+        }
         properties.setProperty(key, value);
     }
 
